@@ -47,21 +47,24 @@ local function stopAll()
     if voidConnection then voidConnection:Disconnect() end
     if killConnection then killConnection:Disconnect() end
     firing = false
+    HumanoidRootPart.Anchored = false
 end
 
 local function floatBehindOwner()
     stopAll()
+    HumanoidRootPart.Anchored = true
     followConnection = RunService.Heartbeat:Connect(function()
         local owner = getOwner()
         if owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart") then
             local root = owner.Character.HumanoidRootPart
-            HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 3, -4)
+            HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 5, -4)
         end
     end)
 end
 
 local function voidSpam()
     stopAll()
+    HumanoidRootPart.Anchored = true
     voidConnection = RunService.Heartbeat:Connect(function()
         local x = math.random(-50000, 50000)
         local y = math.random(2000, 6000)
@@ -83,8 +86,12 @@ local function startShooting()
     end)
 end
 
-local function killTarget(target)
+local function orbitTarget(target)
     stopAll()
+    if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
+    local root = target.Character.HumanoidRootPart
+    HumanoidRootPart.Anchored = true
+
     killConnection = RunService.Heartbeat:Connect(function()
         if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
             voidSpam()
@@ -97,9 +104,13 @@ local function killTarget(target)
             return
         end
 
-        local root = target.Character.HumanoidRootPart
-        local offset = CFrame.new(math.random(-6,6), math.random(0,4), math.random(-6,6))
-        HumanoidRootPart.CFrame = root.CFrame * offset
+        local time = tick() * 5 -- orbit speed
+        local radius = 5         -- orbit radius
+        local x = math.cos(time) * radius
+        local z = math.sin(time) * radius
+        local y = 3              -- above target
+
+        HumanoidRootPart.CFrame = root.CFrame * CFrame.new(x, y, z)
         startShooting()
     end)
 end
@@ -146,7 +157,7 @@ local function onChatted(player)
             local name = msg:sub(4)
             local target = Players:FindFirstChild(name)
             if target then
-                killTarget(target)
+                orbitTarget(target)
             end
         end
     end)
