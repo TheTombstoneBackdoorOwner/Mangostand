@@ -1,0 +1,4 @@
+getgenv().Owner = "" -- your user here
+getgenv().floss = true
+getgenv().trashtalk = true
+
