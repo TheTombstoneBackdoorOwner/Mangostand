@@ -1,5 +1,4 @@
 local StarterGui = game:GetService("StarterGui")
-
 StarterGui:SetCore("SendNotification", {
     Title = "Mango Stand",
     Text = "Mango Stand Rewritten",
@@ -10,6 +9,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local OwnerName = getgenv().Owner
@@ -19,7 +19,6 @@ local enableTrash = getgenv().trashtalk
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local Humanoid = Character:WaitForChild("Humanoid")
-
 local ShootRemote = ReplicatedStorage:WaitForChild("MainEvent")
 
 local trashtalkmsgs = {
@@ -47,83 +46,116 @@ local function stopAll()
     if voidConnection then voidConnection:Disconnect() end
     if killConnection then killConnection:Disconnect() end
     firing = false
-    HumanoidRootPart.Anchored = false
+end
+
+local function equipTool()
+    local toolName = "[LMG]"
+    local tool = Character:FindFirstChild(toolName)
+    if not tool then
+        tool = LocalPlayer.Backpack:FindFirstChild(toolName)
+        if tool then
+            Humanoid:EquipTool(tool)
+        end
+    end
 end
 
 local function floatBehindOwner()
     stopAll()
-    HumanoidRootPart.Anchored = true
     followConnection = RunService.Heartbeat:Connect(function()
         local owner = getOwner()
         if owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart") then
             local root = owner.Character.HumanoidRootPart
-            HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 5, -4)
+            local offset = Vector3.new(0,0,-4)
+            local targetPos = root.Position + root.CFrame:VectorToWorldSpace(offset)
+            local rayOrigin = targetPos + Vector3.new(0,5,0)
+            local rayDir = Vector3.new(0,-50,0)
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {Character}
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+            local rayResult = Workspace:Raycast(rayOrigin, rayDir, rayParams)
+            local finalPos = rayResult and rayResult.Position or targetPos
+            HumanoidRootPart.CFrame = CFrame.new(finalPos) * CFrame.new(0, Humanoid.HipHeight, 0)
+            equipTool()
         end
     end)
 end
 
 local function voidSpam()
     stopAll()
-    HumanoidRootPart.Anchored = true
     voidConnection = RunService.Heartbeat:Connect(function()
-        local x = math.random(-50000, 50000)
-        local y = math.random(2000, 6000)
-        local z = math.random(-50000, 50000)
-        HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+        local x = math.random(-50000,50000)
+        local y = math.random(2000,6000)
+        local z = math.random(-50000,50000)
+        HumanoidRootPart.CFrame = CFrame.new(x,y,z)
+        equipTool()
     end)
 end
 
-local function startShooting()
+local function startShooting(headPos)
     if firing then return end
     firing = true
     task.spawn(function()
         while firing do
-            ShootRemote:FireServer("ShootGun")
-            ShootRemote:FireServer("ShootGun")
-            ShootRemote:FireServer("ShootGun")
+            ShootRemote:FireServer("ShootGun", headPos)
+            ShootRemote:FireServer("ShootGun", headPos)
+            ShootRemote:FireServer("ShootGun", headPos)
             task.wait(0.05)
         end
     end)
 end
 
+local function getTargetRoot(target)
+    if target.Character then
+        return target.Character:FindFirstChild("HumanoidRootPart") 
+               or target.Character:FindFirstChild("Torso") 
+               or target.Character:FindFirstChild("UpperTorso")
+    end
+    return nil
+end
+
+local function getTargetHead(target)
+    if target.Character then
+        return target.Character:FindFirstChild("Head")
+    end
+    return nil
+end
+
 local function orbitTarget(target)
     stopAll()
-    if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
-    local root = target.Character.HumanoidRootPart
-    HumanoidRootPart.Anchored = true
-
+    local root = getTargetRoot(target)
+    local head = getTargetHead(target)
+    if not root or not head then return end
+    equipTool()
     killConnection = RunService.Heartbeat:Connect(function()
-        if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+        root = getTargetRoot(target)
+        head = getTargetHead(target)
+        if not root or not head then
             voidSpam()
             return
         end
-
         local hum = target.Character:FindFirstChildOfClass("Humanoid")
         if not hum or hum.Health <= 0 then
             voidSpam()
             return
         end
-
-        local time = tick() * 5 -- orbit speed
-        local radius = 5         -- orbit radius
+        local time = tick() * 5
+        local radius = 5
         local x = math.cos(time) * radius
         local z = math.sin(time) * radius
-        local y = 3              -- above target
-
-        HumanoidRootPart.CFrame = root.CFrame * CFrame.new(x, y, z)
-        startShooting()
+        local y = 3
+        HumanoidRootPart.CFrame = root.CFrame * CFrame.new(x,y,z)
+        startShooting(head.Position)
     end)
 end
 
 if enableFloss then
     task.spawn(function()
         local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://11415899867"
+        anim.AnimationId = "rbxassetid://507767714"
         flossTrack = Humanoid:LoadAnimation(anim)
         flossTrack.Priority = Enum.AnimationPriority.Action
         flossTrack.Looped = true
         flossTrack:Play()
-
         RunService.Heartbeat:Connect(function()
             if not flossTrack.IsPlaying then
                 flossTrack:Play()
