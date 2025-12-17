@@ -1,1 +1,158 @@
+local StarterGui = game:GetService("StarterGui")
 
+StarterGui:SetCore("SendNotification", {
+    Title = "Mango Stand",
+    Text = "Mango Stand Rewritten",
+    Duration = 3,
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local OwnerName = getgenv().Owner
+local enableFloss = getgenv().floss
+local enableTrash = getgenv().trashtalk
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+local ShootRemote = ReplicatedStorage:WaitForChild("MainEvent")
+
+local trashtalkmsgs = {
+    "Destroyed  By #1 Stand.",
+    "Mango Stand On Top Baby! ",
+    "Is That Stando? Pathetic.😂",
+    "Is That MoonStand? Pathetic.😂",
+    "Be grateful the #1 stand is being used here!",
+    "Most pathetic attempt at survival yet.",
+    "Message from the owner of Mango Stand MERRY CHRISTMAS." 
+}
+
+local followConnection
+local voidConnection
+local killConnection
+local firing = false
+local flossTrack
+
+local function getOwner()
+    return Players:FindFirstChild(OwnerName)
+end
+
+local function stopAll()
+    if followConnection then followConnection:Disconnect() end
+    if voidConnection then voidConnection:Disconnect() end
+    if killConnection then killConnection:Disconnect() end
+    firing = false
+end
+
+local function floatBehindOwner()
+    stopAll()
+    followConnection = RunService.Heartbeat:Connect(function()
+        local owner = getOwner()
+        if owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart") then
+            local root = owner.Character.HumanoidRootPart
+            HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 3, -4)
+        end
+    end)
+end
+
+local function voidSpam()
+    stopAll()
+    voidConnection = RunService.Heartbeat:Connect(function()
+        local x = math.random(-50000, 50000)
+        local y = math.random(2000, 6000)
+        local z = math.random(-50000, 50000)
+        HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+    end)
+end
+
+local function startShooting()
+    if firing then return end
+    firing = true
+    task.spawn(function()
+        while firing do
+            ShootRemote:FireServer("ShootGun")
+            ShootRemote:FireServer("ShootGun")
+            ShootRemote:FireServer("ShootGun")
+            task.wait(0.05)
+        end
+    end)
+end
+
+local function killTarget(target)
+    stopAll()
+    killConnection = RunService.Heartbeat:Connect(function()
+        if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+            voidSpam()
+            return
+        end
+
+        local hum = target.Character:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then
+            voidSpam()
+            return
+        end
+
+        local root = target.Character.HumanoidRootPart
+        local offset = CFrame.new(math.random(-6,6), math.random(0,4), math.random(-6,6))
+        HumanoidRootPart.CFrame = root.CFrame * offset
+        startShooting()
+    end)
+end
+
+if enableFloss then
+    task.spawn(function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://11415899867"
+        flossTrack = Humanoid:LoadAnimation(anim)
+        flossTrack.Priority = Enum.AnimationPriority.Action
+        flossTrack.Looped = true
+        flossTrack:Play()
+
+        RunService.Heartbeat:Connect(function()
+            if not flossTrack.IsPlaying then
+                flossTrack:Play()
+            end
+        end)
+    end)
+end
+
+if enableTrash then
+    task.spawn(function()
+        while true do
+            pcall(function()
+                TextChatService.TextChannels.RBXGeneral:SendAsync(
+                    trashtalkmsgs[math.random(#trashtalkmsgs)]
+                )
+            end)
+            task.wait(3)
+        end
+    end)
+end
+
+local function onChatted(player)
+    if player.Name ~= OwnerName then return end
+    player.Chatted:Connect(function(msg)
+        msg = msg:lower()
+        if msg == ".f" then
+            floatBehindOwner()
+        elseif msg == ".v" then
+            voidSpam()
+        elseif msg:sub(1,3) == ".k " then
+            local name = msg:sub(4)
+            local target = Players:FindFirstChild(name)
+            if target then
+                killTarget(target)
+            end
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    onChatted(p)
+end
+Players.PlayerAdded:Connect(onChatted)
